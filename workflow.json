@@ -1,0 +1,50 @@
+{
+  "nodes": [
+    {
+      "id": "input_node",
+      "type": "Input",
+      "label": "Stock Query",
+      "nodeCategory": "input"
+    },
+    {
+      "id": "stock_analyst_agent",
+      "type": "Agent",
+      "label": "Stock Market Analyst",
+      "nodeCategory": "agent"
+    },
+    {
+      "id": "output_node",
+      "type": "Output",
+      "label": "Trading Analysis",
+      "nodeCategory": "end"
+    }
+  ],
+  "edges": [
+    {
+      "source": "input_node",
+      "target": "stock_analyst_agent"
+    },
+    {
+      "source": "stock_analyst_agent",
+      "target": "output_node"
+    }
+  ],
+  "agents": [
+    {
+      "node_id": "stock_analyst_agent",
+      "agent_id": "699d7b98f015fb55287cbfa6",
+      "name": "Stock Market Analyst",
+      "description": "An AI-powered stock market analyst that fetches real-time market data from NSE (National Stock Exchange) and BSE (Bombay Stock Exchange) for Indian stocks and provides technical analysis including target prices, stop loss levels, support/resistance levels, and trading recommendations",
+      "agent_type": "json",
+      "model": "perplexity/sonar-pro",
+      "provider": "perplexity",
+      "temperature": 0.3,
+      "top_p": 0.9,
+      "tools": [],
+      "image_output": false,
+      "voice_output": false,
+      "file_output": false,
+      "has_knowledge_base": false
+    }
+  ]
+}

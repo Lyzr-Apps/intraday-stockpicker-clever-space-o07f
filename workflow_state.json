@@ -1,0 +1,17 @@
+{
+  "agents": {
+    "stock_analyst_agent": {
+      "agent_id": "699d7b98f015fb55287cbfa6",
+      "name": "Stock Market Analyst",
+      "model": "perplexity/sonar-pro",
+      "provider": "perplexity",
+      "agent_type": "json",
+      "image_output": false,
+      "voice_output": false,
+      "file_output": false,
+      "has_knowledge_base": false
+    }
+  },
+  "rag_ids": {},
+  "schedules": {}
+}
