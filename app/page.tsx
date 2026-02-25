@@ -1,15 +1,12 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { callAIAgent } from '@/lib/aiAgent'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   HiMagnifyingGlass,
   HiArrowTrendingUp,
@@ -20,16 +17,19 @@ import {
   HiExclamationTriangle,
   HiArrowPath,
   HiShieldCheck,
-  HiClock,
   HiBolt,
-  HiInformationCircle,
-  HiChartBar,
+  HiCurrencyDollar,
+  HiSignal,
+  HiCheckCircle,
+  HiXCircle,
+  HiArrowRight,
+  HiNewspaper,
+  HiClipboardDocumentList,
 } from 'react-icons/hi2'
 import {
   RiStockLine,
   RiExchangeLine,
   RiLineChartLine,
-  RiFundsLine,
   RiPulseLine,
 } from 'react-icons/ri'
 import {
@@ -37,9 +37,12 @@ import {
   TbChartCandle,
   TbActivityHeartbeat,
   TbReportAnalytics,
+  TbChartDots3,
+  TbTrendingUp,
+  TbArrowBigUpLines,
+  TbArrowBigDownLines,
 } from 'react-icons/tb'
 import {
-  BiDollarCircle,
   BiTrendingUp,
   BiTrendingDown,
 } from 'react-icons/bi'
@@ -50,78 +53,149 @@ interface StockAnalysis {
   stock_name: string
   exchange: string
   sector: string
+  date: string
+  timeframe: string
   current_price: string
   open_price: string
+  previous_close: string
   days_high: string
   days_low: string
   week_52_high: string
   week_52_low: string
   volume: string
+  average_volume: string
+  volume_ratio: string
   market_cap: string
   pe_ratio: string
-  previous_close: string
   change_percent: string
+  ema_20: string
+  ema_50: string
+  vwap: string
+  rsi: string
+  macd_line: string
+  macd_signal: string
+  atr: string
+  prev_day_high: string
+  prev_day_low: string
+  or_high: string
+  or_low: string
+  pivot: string
+  r1: string
+  r2: string
+  s1: string
+  s2: string
+  index_trend: string
+  vix: string
+  market_breadth: string
+  news_summary: string
+  news_sentiment: string
+  qoq_revenue: string
+  yoy_revenue: string
+  qoq_profit: string
+  yoy_profit: string
+  eps_change: string
+  guidance_summary: string
   trend: string
-  signal: string
-  support_1: string
-  support_2: string
-  resistance_1: string
-  resistance_2: string
-  entry_price: string
+  momentum: string
+  market_structure: string
+  key_support_levels: string
+  key_resistance_levels: string
+  entry_type: string
+  entry_zone: string
+  stop_loss: string
   target_1: string
   target_2: string
-  target_3: string
-  stop_loss: string
   risk_reward_ratio: string
-  time_horizon: string
-  analysis_summary: string
+  position_size: string
+  capital_at_risk: string
+  news_impact: string
+  earnings_impact: string
+  confidence_score: string
+  final_verdict: string
+  reason_summary: string
   disclaimer: string
 }
 
 const POPULAR_STOCKS = [
-  'RELIANCE',
-  'TCS',
-  'INFOSYS',
-  'HDFC BANK',
-  'ICICI BANK',
-  'WIPRO',
-  'BHARTI AIRTEL',
-  'ITC',
+  'RELIANCE', 'TCS', 'INFOSYS', 'HDFC BANK', 'ICICI BANK',
+  'WIPRO', 'BHARTI AIRTEL', 'ITC', 'SBIN', 'TATAMOTORS',
+  'MARUTI', 'BAJFINANCE',
 ]
 
 const SAMPLE_DATA: StockAnalysis = {
-  stock_name: 'Reliance Industries Limited',
+  stock_name: 'RELIANCE',
   exchange: 'NSE',
   sector: 'Oil & Gas / Conglomerate',
-  current_price: '2,847.50',
-  open_price: '2,832.00',
-  days_high: '2,865.30',
-  days_low: '2,825.10',
-  week_52_high: '3,024.90',
-  week_52_low: '2,220.30',
-  volume: '12,45,678',
-  market_cap: '19.26 Lakh Crore',
+  date: '2026-02-25',
+  timeframe: 'Intraday (15min)',
+  current_price: '2,850.00',
+  open_price: '2,840.00',
+  previous_close: '2,835.00',
+  days_high: '2,870.00',
+  days_low: '2,830.00',
+  week_52_high: '3,100.00',
+  week_52_low: '2,200.00',
+  volume: '12,500,000',
+  average_volume: '8,000,000',
+  volume_ratio: '1.56',
+  market_cap: '19.3L Cr',
   pe_ratio: '28.5',
-  previous_close: '2,830.75',
-  change_percent: '+0.59%',
+  change_percent: '+0.53%',
+  ema_20: '2,842.00',
+  ema_50: '2,810.00',
+  vwap: '2,845.00',
+  rsi: '62.5',
+  macd_line: '12.5',
+  macd_signal: '10.2',
+  atr: '35.00',
+  prev_day_high: '2,860.00',
+  prev_day_low: '2,820.00',
+  or_high: '2,855.00',
+  or_low: '2,835.00',
+  pivot: '2,838.33',
+  r1: '2,856.67',
+  r2: '2,878.33',
+  s1: '2,816.67',
+  s2: '2,798.33',
+  index_trend: 'Bullish',
+  vix: '13.5',
+  market_breadth: '1.8 (Positive)',
+  news_summary: 'Jio Platforms reports strong subscriber additions. Reliance Retail shows robust same-store sales growth. Management confirms continued capex in new energy initiatives.',
+  news_sentiment: '0.45',
+  qoq_revenue: '+5.2%',
+  yoy_revenue: '+12.8%',
+  qoq_profit: '+8.1%',
+  yoy_profit: '+15.3%',
+  eps_change: '+14.2%',
+  guidance_summary: 'Management positive on retail and telecom growth',
   trend: 'Bullish',
-  signal: 'Buy',
-  support_1: '2,810.00',
-  support_2: '2,775.00',
-  resistance_1: '2,880.00',
-  resistance_2: '2,920.00',
-  entry_price: '2,840.00',
-  target_1: '2,900.00',
-  target_2: '2,960.00',
-  target_3: '3,050.00',
-  stop_loss: '2,770.00',
+  momentum: 'Strong Bullish',
+  market_structure: 'Higher highs and higher lows, price above VWAP',
+  key_support_levels: '2,835, 2,816, 2,798',
+  key_resistance_levels: '2,857, 2,878, 2,900',
+  entry_type: 'Breakout',
+  entry_zone: '2,855 - 2,860',
+  stop_loss: '2,820',
+  target_1: '2,878',
+  target_2: '2,920',
   risk_reward_ratio: '1:2.5',
-  time_horizon: 'Short-term (1-2 weeks)',
-  analysis_summary:
-    '**Reliance Industries** is showing a **bullish trend** on the daily chart with strong momentum. The stock has broken above its 20-day moving average and is trading above key support levels.\n\n### Key Observations:\n- RSI at 62, indicating moderate bullish momentum\n- MACD has given a bullish crossover\n- Volume is above average, confirming the uptrend\n- The stock is forming a **cup and handle pattern** on the weekly chart\n\n### Recommendation:\nBuy at current levels or on dips to the entry price with a strict stop loss. Book partial profits at Target 1 and trail the stop loss for remaining position.',
-  disclaimer:
-    'This analysis is for educational and informational purposes only. It does not constitute financial advice. Stock market investments are subject to market risks. Past performance is not indicative of future results. Always consult with a qualified financial advisor before making investment decisions.',
+  position_size: '28 shares',
+  capital_at_risk: '1,000',
+  news_impact: 'Bullish',
+  earnings_impact: 'Positive - strong revenue and profit growth',
+  confidence_score: '8',
+  final_verdict: 'Buy',
+  reason_summary: '- Bullish trend with 20 EMA > 50 EMA and price > VWAP\n- Strong momentum: RSI 62.5, MACD above signal\n- Volume ratio 1.56x confirms breakout validity\n- Positive news sentiment (0.45) and strong earnings\n- Risk:Reward ratio of 1:2.5 meets minimum threshold',
+  disclaimer: 'This analysis is for educational purposes only. Trading involves significant risk of loss. Past performance does not guarantee future results. Always do your own research before making investment decisions.',
 }
+
+const LOADING_MESSAGES = [
+  'Fetching NSE/BSE data...',
+  'Analyzing technical indicators...',
+  'Computing trade levels...',
+  'Evaluating news & earnings impact...',
+  'Generating report...',
+]
 
 function parsePrice(val: string | undefined | null): number {
   if (!val) return 0
@@ -133,31 +207,88 @@ function isPositiveChange(changeStr: string | undefined | null): boolean {
   return !changeStr.trim().startsWith('-')
 }
 
-function getSignalColor(signal: string | undefined | null): string {
-  if (!signal) return 'bg-gray-600'
-  const s = signal.toLowerCase()
-  if (s.includes('strong buy')) return 'bg-emerald-500'
-  if (s.includes('buy')) return 'bg-green-500'
-  if (s.includes('strong sell')) return 'bg-red-600'
-  if (s.includes('sell')) return 'bg-red-500'
-  if (s.includes('hold')) return 'bg-amber-500'
-  return 'bg-gray-600'
+function getVerdictStyle(verdict: string | undefined | null): { bg: string; text: string; border: string; shadow: string } {
+  if (!verdict) return { bg: 'bg-gray-700', text: 'text-gray-200', border: 'border-gray-600', shadow: '' }
+  const v = verdict.toLowerCase()
+  if (v.includes('strong buy')) return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-500', shadow: 'shadow-emerald-500/30' }
+  if (v.includes('buy')) return { bg: 'bg-green-600', text: 'text-white', border: 'border-green-500', shadow: 'shadow-green-500/30' }
+  if (v.includes('strong sell')) return { bg: 'bg-red-700', text: 'text-white', border: 'border-red-600', shadow: 'shadow-red-500/30' }
+  if (v.includes('sell')) return { bg: 'bg-orange-600', text: 'text-white', border: 'border-orange-500', shadow: 'shadow-orange-500/30' }
+  if (v.includes('avoid') || v.includes('hold')) return { bg: 'bg-amber-600', text: 'text-white', border: 'border-amber-500', shadow: 'shadow-amber-500/30' }
+  return { bg: 'bg-gray-700', text: 'text-gray-200', border: 'border-gray-600', shadow: '' }
 }
 
-function getTrendIcon(trend: string | undefined | null) {
-  if (!trend) return <HiMinus className="w-5 h-5 text-gray-400" />
-  const t = trend.toLowerCase()
-  if (t.includes('bullish')) return <HiArrowTrendingUp className="w-5 h-5 text-green-400" />
-  if (t.includes('bearish')) return <HiArrowTrendingDown className="w-5 h-5 text-red-400" />
-  return <HiMinus className="w-5 h-5 text-amber-400" />
-}
-
-function getTrendColor(trend: string | undefined | null): string {
-  if (!trend) return 'text-gray-400'
-  const t = trend.toLowerCase()
-  if (t.includes('bullish')) return 'text-green-400'
-  if (t.includes('bearish')) return 'text-red-400'
+function getTrendColor(val: string | undefined | null): string {
+  if (!val) return 'text-gray-400'
+  const v = val.toLowerCase()
+  if (v.includes('bullish') || v.includes('positive') || v.includes('strong')) return 'text-green-400'
+  if (v.includes('bearish') || v.includes('negative') || v.includes('weak')) return 'text-red-400'
   return 'text-amber-400'
+}
+
+function getTrendBg(val: string | undefined | null): string {
+  if (!val) return 'bg-gray-800 border-gray-700'
+  const v = val.toLowerCase()
+  if (v.includes('bullish') || v.includes('positive') || v.includes('strong')) return 'bg-green-950/30 border-green-800/40'
+  if (v.includes('bearish') || v.includes('negative') || v.includes('weak')) return 'bg-red-950/30 border-red-800/40'
+  return 'bg-amber-950/30 border-amber-800/40'
+}
+
+function getImpactColor(val: string | undefined | null): string {
+  if (!val) return 'text-gray-400'
+  const v = val.toLowerCase()
+  if (v.includes('bullish') || v.includes('positive')) return 'text-green-400'
+  if (v.includes('bearish') || v.includes('negative')) return 'text-red-400'
+  if (v.includes('neutral')) return 'text-amber-400'
+  return 'text-gray-300'
+}
+
+function getVixColor(vixStr: string | undefined | null): string {
+  const v = parseFloat(vixStr?.replace(/[^0-9.-]/g, '') || '0')
+  if (v === 0) return 'text-gray-400'
+  if (v < 15) return 'text-green-400'
+  if (v <= 20) return 'text-amber-400'
+  return 'text-red-400'
+}
+
+function getVixLabel(vixStr: string | undefined | null): string {
+  const v = parseFloat(vixStr?.replace(/[^0-9.-]/g, '') || '0')
+  if (v === 0) return ''
+  if (v < 15) return 'Low Volatility'
+  if (v <= 20) return 'Moderate'
+  return 'High Volatility'
+}
+
+function getRsiColor(rsiStr: string | undefined | null): string {
+  const r = parseFloat(rsiStr?.replace(/[^0-9.-]/g, '') || '0')
+  if (r === 0) return 'text-gray-400'
+  if (r < 30) return 'text-red-400'
+  if (r > 70) return 'text-red-400'
+  if (r >= 45 && r <= 55) return 'text-amber-400'
+  return 'text-green-400'
+}
+
+function getRsiLabel(rsiStr: string | undefined | null): string {
+  const r = parseFloat(rsiStr?.replace(/[^0-9.-]/g, '') || '0')
+  if (r === 0) return ''
+  if (r < 30) return 'Oversold'
+  if (r > 70) return 'Overbought'
+  if (r >= 45 && r <= 55) return 'Neutral Zone'
+  if (r < 45) return 'Weak'
+  return 'Bullish'
+}
+
+function getRsiBarWidth(rsiStr: string | undefined | null): number {
+  const r = parseFloat(rsiStr?.replace(/[^0-9.-]/g, '') || '0')
+  return Math.min(100, Math.max(0, r))
+}
+
+function getRsiBarColor(rsiStr: string | undefined | null): string {
+  const r = parseFloat(rsiStr?.replace(/[^0-9.-]/g, '') || '0')
+  if (r < 30) return 'bg-red-500'
+  if (r > 70) return 'bg-red-500'
+  if (r >= 45 && r <= 55) return 'bg-amber-500'
+  return 'bg-green-500'
 }
 
 function renderMarkdown(text: string) {
@@ -220,13 +351,13 @@ function formatInline(text: string) {
   )
 }
 
-function LoadingPulse() {
+function LoadingPulse({ messageIndex }: { messageIndex: number }) {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3 mb-6">
         <RiPulseLine className="w-6 h-6 text-cyan-400 animate-pulse" />
         <span className="text-cyan-400 text-lg font-medium animate-pulse">
-          Analyzing market data...
+          {LOADING_MESSAGES[messageIndex % LOADING_MESSAGES.length]}
         </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -241,25 +372,22 @@ function LoadingPulse() {
           </div>
         ))}
       </div>
-      <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-        <div className="animate-pulse space-y-3">
-          <div className="h-5 bg-gray-700 rounded w-1/3" />
-          <div className="h-40 bg-gray-700 rounded w-full" />
-        </div>
-      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[1, 2].map((n) => (
           <div key={n} className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
             <div className="animate-pulse space-y-3">
-              <div className="h-5 bg-gray-700 rounded w-1/2" />
+              <div className="h-5 bg-gray-700 rounded w-1/3" />
               <div className="h-24 bg-gray-700 rounded w-full" />
             </div>
           </div>
         ))}
       </div>
-      <p className="text-center text-gray-500 text-sm mt-4">
-        Fetching NSE/BSE data and running technical analysis...
-      </p>
+      <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
+        <div className="animate-pulse space-y-3">
+          <div className="h-5 bg-gray-700 rounded w-1/4" />
+          <div className="h-40 bg-gray-700 rounded w-full" />
+        </div>
+      </div>
     </div>
   )
 }
@@ -286,80 +414,84 @@ function Week52RangeBar({ low, high, current }: { low: string; high: string; cur
   return (
     <div className="mt-2">
       <div className="relative h-2 rounded-full bg-gray-700 overflow-visible">
-        <div
-          className="absolute h-2 rounded-full bg-gradient-to-r from-red-500 via-amber-500 to-green-500"
-          style={{ width: '100%' }}
-        />
-        <div
-          className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-cyan-400 shadow-lg shadow-cyan-400/30"
-          style={{ left: `calc(${pct}% - 7px)` }}
-        />
+        <div className="absolute h-2 rounded-full bg-gradient-to-r from-red-500 via-amber-500 to-green-500" style={{ width: '100%' }} />
+        <div className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-cyan-400 shadow-lg shadow-cyan-400/30" style={{ left: `calc(${pct}% - 7px)` }} />
       </div>
       <div className="flex justify-between text-xs text-gray-500 mt-1.5">
         <span>52W Low: {low || 'N/A'}</span>
+        <span className="text-cyan-400 font-mono text-xs">{current || ''}</span>
         <span>52W High: {high || 'N/A'}</span>
       </div>
     </div>
   )
 }
 
+function ConfidenceGauge({ score }: { score: string | undefined | null }) {
+  const val = parseInt(score?.replace(/[^0-9]/g, '') || '0', 10)
+  const clampedVal = Math.min(10, Math.max(0, val))
+  const pct = (clampedVal / 10) * 100
+
+  let gaugeColor = 'bg-red-500'
+  let textColor = 'text-red-400'
+  if (clampedVal >= 7) { gaugeColor = 'bg-green-500'; textColor = 'text-green-400' }
+  else if (clampedVal >= 5) { gaugeColor = 'bg-amber-500'; textColor = 'text-amber-400' }
+  else if (clampedVal >= 3) { gaugeColor = 'bg-orange-500'; textColor = 'text-orange-400' }
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-500">Confidence</span>
+          <span className={`text-sm font-bold font-mono ${textColor}`}>{clampedVal}/10</span>
+        </div>
+        <div className="h-2 rounded-full bg-gray-700 overflow-hidden">
+          <div className={`h-full rounded-full ${gaugeColor} transition-all duration-500`} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PriceLadder({ data }: { data: StockAnalysis }) {
+  const currentVal = parsePrice(data?.current_price)
+
   const levels = [
-    { label: 'Target 3', value: data?.target_3, color: 'bg-emerald-500', textColor: 'text-emerald-400', borderColor: 'border-emerald-500/40' },
-    { label: 'Target 2', value: data?.target_2, color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-500/40' },
-    { label: 'Target 1', value: data?.target_1, color: 'bg-green-400', textColor: 'text-green-300', borderColor: 'border-green-400/40' },
-    { label: 'Resistance 2', value: data?.resistance_2, color: 'bg-orange-400', textColor: 'text-orange-300', borderColor: 'border-orange-400/40' },
-    { label: 'Resistance 1', value: data?.resistance_1, color: 'bg-orange-300', textColor: 'text-orange-200', borderColor: 'border-orange-300/40' },
-    { label: 'Entry Price', value: data?.entry_price, color: 'bg-cyan-400', textColor: 'text-cyan-300', borderColor: 'border-cyan-400/50' },
-    { label: 'Current Price', value: data?.current_price, color: 'bg-white', textColor: 'text-white', borderColor: 'border-white/50' },
-    { label: 'Support 1', value: data?.support_1, color: 'bg-blue-400', textColor: 'text-blue-300', borderColor: 'border-blue-400/40' },
-    { label: 'Support 2', value: data?.support_2, color: 'bg-blue-500', textColor: 'text-blue-400', borderColor: 'border-blue-500/40' },
+    { label: 'Target 2', value: data?.target_2, color: 'bg-emerald-500', textColor: 'text-emerald-400', borderColor: 'border-emerald-500/40' },
+    { label: 'Target 1', value: data?.target_1, color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-500/40' },
+    { label: 'Entry Zone', value: data?.entry_zone, color: 'bg-cyan-400', textColor: 'text-cyan-300', borderColor: 'border-cyan-400/50' },
     { label: 'Stop Loss', value: data?.stop_loss, color: 'bg-red-500', textColor: 'text-red-400', borderColor: 'border-red-500/40' },
   ]
 
-  const currentPriceVal = parsePrice(data?.current_price)
-
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {levels.map((level, idx) => {
         const priceVal = parsePrice(level.value)
         let pctDiff = ''
-        if (currentPriceVal > 0 && priceVal > 0 && level.label !== 'Current Price') {
-          const diff = ((priceVal - currentPriceVal) / currentPriceVal) * 100
+        if (currentVal > 0 && priceVal > 0) {
+          const diff = ((priceVal - currentVal) / currentVal) * 100
           pctDiff = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}%`
         }
 
-        const isCurrentPrice = level.label === 'Current Price'
-        const isTarget = level.label.startsWith('Target')
+        const isEntry = level.label === 'Entry Zone'
         const isStopLoss = level.label === 'Stop Loss'
-        const isEntry = level.label === 'Entry Price'
+        const isTarget = level.label.startsWith('Target')
 
         return (
-          <div
-            key={idx}
-            className={`flex items-center gap-3 p-2.5 rounded-lg border transition-all ${level.borderColor} ${isCurrentPrice ? 'bg-white/5 border-white/30' : 'bg-gray-800/40 hover:bg-gray-800/60'}`}
-          >
-            <div className={`w-3 h-3 rounded-full ${level.color} shrink-0 ${isCurrentPrice ? 'animate-pulse shadow-lg shadow-white/30' : ''}`} />
+          <div key={idx} className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${level.borderColor} bg-gray-800/40 hover:bg-gray-800/60`}>
+            <div className={`w-3 h-3 rounded-full ${level.color} shrink-0`} />
             <div className="flex-1 min-w-0">
-              <span className={`text-xs font-medium ${level.textColor}`}>
-                {level.label}
-              </span>
+              <span className={`text-xs font-medium ${level.textColor}`}>{level.label}</span>
             </div>
             <div className="text-right flex items-center gap-2">
-              <span className={`font-mono text-sm font-semibold ${level.textColor}`}>
-                {level.value || 'N/A'}
-              </span>
+              <span className={`font-mono text-sm font-semibold ${level.textColor}`}>{level.value || 'N/A'}</span>
               {pctDiff && (
-                <span className={`text-xs font-mono ${pctDiff.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
-                  ({pctDiff})
-                </span>
+                <span className={`text-xs font-mono ${pctDiff.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>({pctDiff})</span>
               )}
             </div>
             <div className="w-5 flex justify-center">
               {isTarget && <HiChevronUp className="w-4 h-4 text-green-400" />}
-              {isStopLoss && <HiChevronDown className="w-4 h-4 text-red-400" />}
+              {isStopLoss && <HiShieldCheck className="w-4 h-4 text-red-400" />}
               {isEntry && <TbTargetArrow className="w-4 h-4 text-cyan-400" />}
-              {isCurrentPrice && <RiStockLine className="w-4 h-4 text-white" />}
             </div>
           </div>
         )
@@ -368,14 +500,11 @@ function PriceLadder({ data }: { data: StockAnalysis }) {
   )
 }
 
-function DataRow({ label, value, icon }: { label: string; value: string | undefined | null; icon?: React.ReactNode }) {
+function DataCell({ label, value, valueColor }: { label: string; value: string | undefined | null; valueColor?: string }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-gray-700/50 last:border-0">
-      <div className="flex items-center gap-2 text-gray-400 text-sm">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <span className="font-mono text-sm text-gray-200 font-medium">{value || 'N/A'}</span>
+    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/30">
+      <p className="text-xs text-gray-500 mb-1">{label}</p>
+      <p className={`font-mono text-sm font-medium ${valueColor || 'text-gray-200'}`}>{value || 'N/A'}</p>
     </div>
   )
 }
@@ -433,12 +562,36 @@ class ErrorBoundary extends React.Component<
 
 export default function Page() {
   const [query, setQuery] = useState('')
+  const [capital, setCapital] = useState('100000')
+  const [riskPercent, setRiskPercent] = useState('1')
+  const [maxTrades, setMaxTrades] = useState('3')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<StockAnalysis | null>(null)
   const [error, setError] = useState('')
   const [showSample, setShowSample] = useState(false)
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0)
+  const loadingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const displayData = showSample ? SAMPLE_DATA : result
+
+  useEffect(() => {
+    if (loading) {
+      setLoadingMsgIdx(0)
+      loadingIntervalRef.current = setInterval(() => {
+        setLoadingMsgIdx(prev => (prev + 1) % LOADING_MESSAGES.length)
+      }, 2500)
+    } else {
+      if (loadingIntervalRef.current) {
+        clearInterval(loadingIntervalRef.current)
+        loadingIntervalRef.current = null
+      }
+    }
+    return () => {
+      if (loadingIntervalRef.current) {
+        clearInterval(loadingIntervalRef.current)
+      }
+    }
+  }, [loading])
 
   const analyzeStock = useCallback(async (stockName: string) => {
     if (!stockName.trim()) return
@@ -446,24 +599,23 @@ export default function Page() {
     setError('')
     setResult(null)
     try {
-      const response = await callAIAgent(
-        `Analyze the stock ${stockName} from NSE/BSE. Provide current market data, technical analysis, target prices, stop loss, and trading recommendation.`,
-        AGENT_ID
-      )
+      const message = `Analyze the stock ${stockName} for intraday trading. Capital: ${capital} INR, Risk per trade: ${riskPercent}%, Max trades today: ${maxTrades}. Provide complete Trade Decision Report with all technical indicators, pivot levels, support/resistance, entry/exit levels, position sizing, news analysis, earnings data, and final verdict.`
+      const response = await callAIAgent(message, AGENT_ID)
       if (response?.success) {
         const data = response?.response?.result as StockAnalysis
         setResult(data)
       } else {
-        setError(response?.error || response?.response?.message || 'Failed to analyze stock. Please try again.')
+        setError(response?.error || response?.response?.message || 'Failed to analyze stock.')
       }
     } catch (err) {
       setError('Failed to analyze stock. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [capital, riskPercent, maxTrades])
 
   const handleSearch = useCallback(() => {
+    setShowSample(false)
     analyzeStock(query)
   }, [query, analyzeStock])
 
@@ -483,6 +635,25 @@ export default function Page() {
     [analyzeStock]
   )
 
+  const parseLevels = (str: string | undefined | null): string[] => {
+    if (!str) return []
+    return str.split(',').map(s => s.trim()).filter(s => s.length > 0)
+  }
+
+  const parseReasons = (str: string | undefined | null): string[] => {
+    if (!str) return []
+    return str.split('\n').map(s => s.trim()).filter(s => s.startsWith('-')).map(s => s.slice(1).trim())
+  }
+
+  const volRatio = parseFloat(displayData?.volume_ratio?.replace(/[^0-9.-]/g, '') || '0')
+  const ema20Val = parsePrice(displayData?.ema_20)
+  const ema50Val = parsePrice(displayData?.ema_50)
+  const macdLineVal = parseFloat(displayData?.macd_line?.replace(/[^0-9.-]/g, '') || '0')
+  const macdSignalVal = parseFloat(displayData?.macd_signal?.replace(/[^0-9.-]/g, '') || '0')
+  const currentPriceVal = parsePrice(displayData?.current_price)
+  const vwapVal = parsePrice(displayData?.vwap)
+  const sentimentVal = parseFloat(displayData?.news_sentiment?.replace(/[^0-9.+-]/g, '') || '0')
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -492,39 +663,36 @@ export default function Page() {
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                <div className="p-2.5 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
                   <RiStockLine className="w-7 h-7 text-cyan-400" />
                 </div>
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                    StockPulse
+                    StockPulse Pro
                   </h1>
                   <p className="text-xs sm:text-sm text-gray-400">
-                    NSE & BSE Market Analyzer
+                    Professional Intraday Trading Analyst
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-500">Sample Data</span>
-                <Switch
-                  checked={showSample}
-                  onCheckedChange={(checked) => {
-                    setShowSample(checked)
-                    if (checked) {
-                      setError('')
-                    }
+                <button
+                  onClick={() => {
+                    setShowSample(!showSample)
+                    if (!showSample) setError('')
                   }}
-                />
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showSample ? 'bg-cyan-600' : 'bg-gray-700'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showSample ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
               </div>
             </div>
-            <p className="mt-3 text-sm text-gray-500 max-w-2xl">
-              Real-time stock analysis with AI-powered target & stop loss recommendations for Indian markets
-            </p>
           </div>
         </header>
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* Search Section */}
+          {/* Search & Config Section */}
           <Card className="bg-gray-900/80 border-gray-800 shadow-xl shadow-black/20">
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row gap-3">
@@ -557,11 +725,42 @@ export default function Page() {
                 </Button>
               </div>
 
+              {/* Config Fields */}
+              <div className="grid grid-cols-3 gap-3 mt-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Capital (INR)</label>
+                  <Input
+                    value={capital}
+                    onChange={(e) => setCapital(e.target.value)}
+                    placeholder="100000"
+                    className="bg-gray-800 border-gray-700 text-gray-100 placeholder:text-gray-500 h-9 text-sm font-mono focus:border-cyan-500 focus:ring-cyan-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Risk per Trade (%)</label>
+                  <Input
+                    value={riskPercent}
+                    onChange={(e) => setRiskPercent(e.target.value)}
+                    placeholder="1"
+                    className="bg-gray-800 border-gray-700 text-gray-100 placeholder:text-gray-500 h-9 text-sm font-mono focus:border-cyan-500 focus:ring-cyan-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Max Trades</label>
+                  <Input
+                    value={maxTrades}
+                    onChange={(e) => setMaxTrades(e.target.value)}
+                    placeholder="3"
+                    className="bg-gray-800 border-gray-700 text-gray-100 placeholder:text-gray-500 h-9 text-sm font-mono focus:border-cyan-500 focus:ring-cyan-500/20"
+                  />
+                </div>
+              </div>
+
               {/* Popular Stocks */}
               <div className="mt-4">
                 <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
                   <HiBolt className="w-3.5 h-3.5" />
-                  Popular Stocks
+                  Quick Access
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {POPULAR_STOCKS.map((stock) => (
@@ -602,42 +801,81 @@ export default function Page() {
           )}
 
           {/* Loading State */}
-          {loading && !showSample && <LoadingPulse />}
+          {loading && !showSample && <LoadingPulse messageIndex={loadingMsgIdx} />}
 
           {/* Empty State */}
           {!loading && !displayData && !error && (
             <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center">
               <div className="p-4 bg-gray-800/50 rounded-2xl border border-gray-700/50 mb-6">
-                <TbChartCandle className="w-12 h-12 text-gray-600" />
+                <TbChartCandle className="w-14 h-14 text-gray-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-300 mb-2">
-                Ready to Analyze
+                Ready to Generate Trade Report
               </h3>
-              <p className="text-sm text-gray-500 max-w-md mb-6">
-                Search for any NSE or BSE listed stock above to get comprehensive technical analysis, target prices, stop loss levels, and AI-powered trading recommendations.
+              <p className="text-sm text-gray-500 max-w-lg mb-8">
+                Enter any NSE or BSE listed stock above to get a comprehensive Trade Decision Report with technical analysis, entry/exit levels, position sizing, and AI confidence scoring.
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg">
-                {['Price Data', 'Targets & SL', 'Support/Resistance', 'AI Analysis'].map(
-                  (feature) => (
-                    <div
-                      key={feature}
-                      className="flex items-center gap-2 text-xs text-gray-500 bg-gray-800/40 rounded-lg px-3 py-2 border border-gray-700/30"
-                    >
-                      <HiShieldCheck className="w-3.5 h-3.5 text-cyan-600" />
-                      {feature}
-                    </div>
-                  )
-                )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-xl">
+                {[
+                  { label: 'Real-time NSE/BSE Data', icon: <RiStockLine className="w-4 h-4 text-cyan-500" /> },
+                  { label: 'EMA, RSI, MACD, VWAP', icon: <TbChartDots3 className="w-4 h-4 text-cyan-500" /> },
+                  { label: 'Target & Stop Loss', icon: <TbTargetArrow className="w-4 h-4 text-cyan-500" /> },
+                  { label: 'Position Sizing & Risk', icon: <HiShieldCheck className="w-4 h-4 text-cyan-500" /> },
+                  { label: 'News & Earnings', icon: <HiNewspaper className="w-4 h-4 text-cyan-500" /> },
+                  { label: 'AI Confidence Score', icon: <HiSignal className="w-4 h-4 text-cyan-500" /> },
+                ].map((f) => (
+                  <div key={f.label} className="flex items-center gap-2 text-xs text-gray-400 bg-gray-800/40 rounded-lg px-3 py-2.5 border border-gray-700/30">
+                    {f.icon}
+                    {f.label}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Results Dashboard */}
+          {/* ============== RESULTS DASHBOARD ============== */}
           {displayData && !loading && (
             <div className="space-y-6">
-              {/* Top Section: Stock Overview + Signal */}
+
+              {/* ROW 1: Verdict Banner */}
+              <div className={`rounded-xl border-2 p-4 sm:p-6 ${getVerdictStyle(displayData?.final_verdict).border} ${getVerdictStyle(displayData?.final_verdict).shadow} shadow-lg bg-gray-900/90`}>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl ${getVerdictStyle(displayData?.final_verdict).bg} ${getVerdictStyle(displayData?.final_verdict).text} font-bold text-xl shadow-lg`}>
+                      {displayData?.final_verdict?.toLowerCase().includes('buy') ? (
+                        <HiArrowTrendingUp className="w-6 h-6" />
+                      ) : displayData?.final_verdict?.toLowerCase().includes('sell') ? (
+                        <HiArrowTrendingDown className="w-6 h-6" />
+                      ) : (
+                        <HiMinus className="w-6 h-6" />
+                      )}
+                      {displayData?.final_verdict ?? 'N/A'}
+                    </div>
+                    <Badge className={`${getTrendBg(displayData?.trend)} ${getTrendColor(displayData?.trend)} border text-xs px-3 py-1`}>
+                      {displayData?.trend ?? 'N/A'}
+                    </Badge>
+                    <Badge className={`${getTrendBg(displayData?.momentum)} ${getTrendColor(displayData?.momentum)} border text-xs px-3 py-1`}>
+                      {displayData?.momentum ?? 'N/A'}
+                    </Badge>
+                    <Badge className="bg-cyan-950/30 border-cyan-800/40 text-cyan-300 border text-xs px-3 py-1">
+                      {displayData?.entry_type ?? 'N/A'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="w-48">
+                      <ConfidenceGauge score={displayData?.confidence_score} />
+                    </div>
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs text-gray-500">{displayData?.date ?? ''}</p>
+                      <p className="text-xs text-gray-500">{displayData?.timeframe ?? ''}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ROW 2: Stock Overview + Market Context */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Stock Overview Card */}
+                {/* Stock Overview (2/3) */}
                 <div className="lg:col-span-2">
                   <Card className="bg-gray-900/80 border-gray-800 h-full">
                     <CardHeader className="pb-3">
@@ -651,9 +889,7 @@ export default function Page() {
                               {displayData?.exchange ?? 'N/A'}
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {displayData?.sector ?? 'N/A'}
-                          </p>
+                          <p className="text-sm text-gray-500 mt-1">{displayData?.sector ?? 'N/A'}</p>
                         </div>
                         <div className="text-left sm:text-right shrink-0">
                           <div className="flex items-baseline gap-2">
@@ -667,9 +903,7 @@ export default function Page() {
                             ) : (
                               <BiTrendingDown className="w-4 h-4 text-red-400" />
                             )}
-                            <span
-                              className={`text-lg font-semibold font-mono ${isPositiveChange(displayData?.change_percent) ? 'text-green-400' : 'text-red-400'}`}
-                            >
+                            <span className={`text-lg font-semibold font-mono ${isPositiveChange(displayData?.change_percent) ? 'text-green-400' : 'text-red-400'}`}>
                               {displayData?.change_percent ?? 'N/A'}
                             </span>
                           </div>
@@ -677,43 +911,40 @@ export default function Page() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {/* OHLC Grid */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/30">
-                          <p className="text-xs text-gray-500 mb-1">Open</p>
-                          <p className="font-mono text-sm font-medium text-gray-200">{displayData?.open_price ?? 'N/A'}</p>
-                        </div>
-                        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/30">
-                          <p className="text-xs text-gray-500 mb-1">Prev Close</p>
-                          <p className="font-mono text-sm font-medium text-gray-200">{displayData?.previous_close ?? 'N/A'}</p>
-                        </div>
-                        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/30">
-                          <p className="text-xs text-gray-500 mb-1">Day High</p>
-                          <p className="font-mono text-sm font-medium text-green-400">{displayData?.days_high ?? 'N/A'}</p>
-                        </div>
-                        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/30">
-                          <p className="text-xs text-gray-500 mb-1">Day Low</p>
-                          <p className="font-mono text-sm font-medium text-red-400">{displayData?.days_low ?? 'N/A'}</p>
-                        </div>
+                        <DataCell label="Open" value={displayData?.open_price} />
+                        <DataCell label="Prev Close" value={displayData?.previous_close} />
+                        <DataCell label="Day High" value={displayData?.days_high} valueColor="text-green-400" />
+                        <DataCell label="Day Low" value={displayData?.days_low} valueColor="text-red-400" />
                       </div>
 
-                      <Separator className="bg-gray-800" />
+                      {/* Volume & Fundamental */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <DataCell label="Volume" value={displayData?.volume} />
+                        <DataCell label="Avg Volume" value={displayData?.average_volume} />
+                        <DataCell label="Vol Ratio" value={displayData?.volume_ratio} valueColor={volRatio > 1.5 ? 'text-green-400' : 'text-gray-200'} />
+                        <DataCell label="Market Cap" value={displayData?.market_cap} />
+                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <DataRow
-                          label="Volume"
-                          value={displayData?.volume}
-                          icon={<HiChartBar className="w-3.5 h-3.5" />}
-                        />
-                        <DataRow
-                          label="Market Cap"
-                          value={displayData?.market_cap}
-                          icon={<BiDollarCircle className="w-3.5 h-3.5" />}
-                        />
-                        <DataRow
-                          label="P/E Ratio"
-                          value={displayData?.pe_ratio}
-                          icon={<RiFundsLine className="w-3.5 h-3.5" />}
-                        />
+                      <div className="grid grid-cols-2 gap-3">
+                        <DataCell label="P/E Ratio" value={displayData?.pe_ratio} />
+                        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/30">
+                          <p className="text-xs text-gray-500 mb-1">Volume Breakout</p>
+                          <div className="flex items-center gap-2">
+                            {volRatio > 1.5 ? (
+                              <>
+                                <HiCheckCircle className="w-4 h-4 text-green-400" />
+                                <span className="text-sm font-medium text-green-400">Confirmed ({displayData?.volume_ratio}x)</span>
+                              </>
+                            ) : (
+                              <>
+                                <HiXCircle className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm font-medium text-gray-400">Not confirmed ({displayData?.volume_ratio ?? 'N/A'}x)</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
                       {/* 52 Week Range */}
@@ -722,242 +953,571 @@ export default function Page() {
                           <RiExchangeLine className="w-3.5 h-3.5" />
                           52-Week Range
                         </p>
-                        <Week52RangeBar
-                          low={displayData?.week_52_low ?? ''}
-                          high={displayData?.week_52_high ?? ''}
-                          current={displayData?.current_price ?? ''}
-                        />
+                        <Week52RangeBar low={displayData?.week_52_low ?? ''} high={displayData?.week_52_high ?? ''} current={displayData?.current_price ?? ''} />
                       </div>
                     </CardContent>
                   </Card>
                 </div>
 
-                {/* Trading Signal Card */}
+                {/* Market Context (1/3) */}
                 <div className="lg:col-span-1">
                   <Card className="bg-gray-900/80 border-gray-800 h-full">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm text-gray-400 flex items-center gap-2">
-                        <HiBolt className="w-4 h-4 text-cyan-400" />
-                        Trading Signal
+                        <HiSignal className="w-4 h-4 text-cyan-400" />
+                        Market Context
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-5">
-                      {/* Signal */}
-                      <div className="text-center py-4">
-                        <div
-                          className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl ${getSignalColor(displayData?.signal)} text-white font-bold text-lg shadow-lg`}
-                        >
-                          {displayData?.signal?.toLowerCase().includes('buy') ? (
-                            <HiArrowTrendingUp className="w-5 h-5" />
-                          ) : displayData?.signal?.toLowerCase().includes('sell') ? (
-                            <HiArrowTrendingDown className="w-5 h-5" />
+                    <CardContent className="space-y-4">
+                      {/* Index Trend */}
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-400">Index Trend</span>
+                        <div className="flex items-center gap-2">
+                          {displayData?.index_trend?.toLowerCase().includes('bullish') ? (
+                            <HiArrowTrendingUp className="w-4 h-4 text-green-400" />
+                          ) : displayData?.index_trend?.toLowerCase().includes('bearish') ? (
+                            <HiArrowTrendingDown className="w-4 h-4 text-red-400" />
                           ) : (
-                            <HiMinus className="w-5 h-5" />
+                            <HiMinus className="w-4 h-4 text-amber-400" />
                           )}
-                          {displayData?.signal ?? 'N/A'}
-                        </div>
-                      </div>
-
-                      <Separator className="bg-gray-800" />
-
-                      {/* Trend */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Trend</span>
-                        <div className="flex items-center gap-2">
-                          {getTrendIcon(displayData?.trend)}
-                          <span className={`font-medium text-sm ${getTrendColor(displayData?.trend)}`}>
-                            {displayData?.trend ?? 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Risk Reward */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Risk:Reward</span>
-                        <div className="flex items-center gap-2">
-                          <HiShieldCheck className="w-4 h-4 text-cyan-400" />
-                          <span className="font-mono text-sm font-medium text-cyan-300">
-                            {displayData?.risk_reward_ratio ?? 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Time Horizon */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Time Horizon</span>
-                        <div className="flex items-center gap-2">
-                          <HiClock className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-200">
-                            {displayData?.time_horizon ?? 'N/A'}
+                          <span className={`text-sm font-medium ${getTrendColor(displayData?.index_trend)}`}>
+                            {displayData?.index_trend ?? 'N/A'}
                           </span>
                         </div>
                       </div>
 
                       <Separator className="bg-gray-800" />
 
-                      {/* Quick Levels */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between bg-cyan-950/20 border border-cyan-800/30 rounded-lg px-3 py-2">
-                          <span className="text-xs text-cyan-400 flex items-center gap-1.5">
-                            <TbTargetArrow className="w-3.5 h-3.5" />
-                            Entry
+                      {/* VIX */}
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-400">India VIX</span>
+                        <div className="text-right">
+                          <span className={`text-sm font-mono font-semibold ${getVixColor(displayData?.vix)}`}>
+                            {displayData?.vix ?? 'N/A'}
                           </span>
-                          <span className="font-mono text-sm font-medium text-cyan-300">
-                            {displayData?.entry_price ?? 'N/A'}
-                          </span>
+                          {displayData?.vix && (
+                            <p className={`text-xs ${getVixColor(displayData?.vix)}`}>{getVixLabel(displayData?.vix)}</p>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between bg-red-950/20 border border-red-800/30 rounded-lg px-3 py-2">
-                          <span className="text-xs text-red-400 flex items-center gap-1.5">
-                            <HiExclamationTriangle className="w-3.5 h-3.5" />
-                            Stop Loss
-                          </span>
-                          <span className="font-mono text-sm font-medium text-red-300">
-                            {displayData?.stop_loss ?? 'N/A'}
-                          </span>
-                        </div>
+                      </div>
+
+                      <Separator className="bg-gray-800" />
+
+                      {/* Market Breadth */}
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-400">Market Breadth</span>
+                        <span className="text-sm text-gray-200 font-medium">{displayData?.market_breadth ?? 'N/A'}</span>
+                      </div>
+
+                      <Separator className="bg-gray-800" />
+
+                      {/* News Impact */}
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-400">News Impact</span>
+                        <Badge className={`${getTrendBg(displayData?.news_impact)} ${getImpactColor(displayData?.news_impact)} border text-xs`}>
+                          {displayData?.news_impact ?? 'N/A'}
+                        </Badge>
+                      </div>
+
+                      <Separator className="bg-gray-800" />
+
+                      {/* Earnings Impact */}
+                      <div className="py-2">
+                        <span className="text-sm text-gray-400 block mb-1">Earnings Impact</span>
+                        <p className={`text-sm ${getImpactColor(displayData?.earnings_impact)}`}>
+                          {displayData?.earnings_impact ?? 'N/A'}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
               </div>
 
-              {/* Middle Section: Price Ladder + Support/Resistance */}
+              {/* ROW 3: Technical Indicators + Pivot Levels */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Price Ladder - PRIMARY FEATURE */}
-                <Card className="bg-gray-900/80 border-gray-800 border-cyan-800/20 shadow-lg shadow-cyan-900/5">
+                {/* Technical Indicators */}
+                <Card className="bg-gray-900/80 border-gray-800">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base text-white flex items-center gap-2">
-                      <TbTargetArrow className="w-5 h-5 text-cyan-400" />
-                      Target & Stop Loss Levels
+                      <TbChartDots3 className="w-5 h-5 text-cyan-400" />
+                      Technical Indicators
                     </CardTitle>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Price ladder showing entry, targets, support/resistance, and stop loss
-                    </p>
                   </CardHeader>
-                  <CardContent>
-                    <PriceLadder data={displayData} />
+                  <CardContent className="space-y-4">
+                    {/* EMA Section */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Exponential Moving Averages</span>
+                        <Badge className={`text-xs border ${ema20Val > ema50Val ? 'bg-green-950/30 border-green-800/40 text-green-400' : ema20Val < ema50Val ? 'bg-red-950/30 border-red-800/40 text-red-400' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
+                          {ema20Val > ema50Val ? 'Bullish Cross' : ema20Val < ema50Val ? 'Bearish Cross' : '--'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">EMA 20</span>
+                          <span className="font-mono text-sm font-medium text-gray-200">{displayData?.ema_20 ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">EMA 50</span>
+                          <span className="font-mono text-sm font-medium text-gray-200">{displayData?.ema_50 ?? 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* VWAP */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">VWAP</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-medium text-gray-200">{displayData?.vwap ?? 'N/A'}</span>
+                          {currentPriceVal > 0 && vwapVal > 0 && (
+                            <Badge className={`text-xs border ${currentPriceVal > vwapVal ? 'bg-green-950/30 border-green-800/40 text-green-400' : 'bg-red-950/30 border-red-800/40 text-red-400'}`}>
+                              Price {currentPriceVal > vwapVal ? 'Above' : 'Below'} VWAP
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RSI */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">RSI (14)</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-mono text-sm font-bold ${getRsiColor(displayData?.rsi)}`}>
+                            {displayData?.rsi ?? 'N/A'}
+                          </span>
+                          <span className={`text-xs ${getRsiColor(displayData?.rsi)}`}>{getRsiLabel(displayData?.rsi)}</span>
+                        </div>
+                      </div>
+                      <div className="relative h-2.5 rounded-full bg-gray-700 overflow-hidden">
+                        <div className={`h-full rounded-full ${getRsiBarColor(displayData?.rsi)} transition-all duration-500`} style={{ width: `${getRsiBarWidth(displayData?.rsi)}%` }} />
+                        {/* Markers at 30 and 70 */}
+                        <div className="absolute top-0 bottom-0 w-px bg-gray-500/50" style={{ left: '30%' }} />
+                        <div className="absolute top-0 bottom-0 w-px bg-gray-500/50" style={{ left: '70%' }} />
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-600 mt-1">
+                        <span>0</span>
+                        <span>30</span>
+                        <span>50</span>
+                        <span>70</span>
+                        <span>100</span>
+                      </div>
+                    </div>
+
+                    {/* MACD */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">MACD</span>
+                        <Badge className={`text-xs border ${macdLineVal > macdSignalVal ? 'bg-green-950/30 border-green-800/40 text-green-400' : macdLineVal < macdSignalVal ? 'bg-red-950/30 border-red-800/40 text-red-400' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
+                          {macdLineVal > macdSignalVal ? 'Bullish' : macdLineVal < macdSignalVal ? 'Bearish' : '--'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Line</span>
+                          <span className="font-mono text-sm font-medium text-gray-200">{displayData?.macd_line ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Signal</span>
+                          <span className="font-mono text-sm font-medium text-gray-200">{displayData?.macd_signal ?? 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ATR */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">ATR (Average True Range)</span>
+                        <span className="font-mono text-sm font-medium text-gray-200">{displayData?.atr ?? 'N/A'}</span>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
-                {/* Support & Resistance + Analysis Tabs */}
+                {/* Pivot & Range Levels */}
                 <Card className="bg-gray-900/80 border-gray-800">
-                  <Tabs defaultValue="levels" className="h-full flex flex-col">
-                    <CardHeader className="pb-2">
-                      <TabsList className="bg-gray-800 border border-gray-700/50">
-                        <TabsTrigger value="levels" className="data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-400 text-xs">
-                          Support / Resistance
-                        </TabsTrigger>
-                        <TabsTrigger value="analysis" className="data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-400 text-xs">
-                          AI Analysis
-                        </TabsTrigger>
-                      </TabsList>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                      <TabsContent value="levels" className="mt-0 space-y-4">
-                        {/* Resistance Levels */}
-                        <div>
-                          <p className="text-xs font-medium text-orange-400 mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                            <HiChevronUp className="w-3.5 h-3.5" />
-                            Resistance Levels
-                          </p>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between bg-orange-950/15 border border-orange-800/20 rounded-lg px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-orange-400" />
-                                <span className="text-sm text-gray-300">Resistance 2</span>
-                              </div>
-                              <span className="font-mono text-sm font-semibold text-orange-300">
-                                {displayData?.resistance_2 ?? 'N/A'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between bg-orange-950/10 border border-orange-800/15 rounded-lg px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-orange-300" />
-                                <span className="text-sm text-gray-300">Resistance 1</span>
-                              </div>
-                              <span className="font-mono text-sm font-semibold text-orange-200">
-                                {displayData?.resistance_1 ?? 'N/A'}
-                              </span>
-                            </div>
-                          </div>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-white flex items-center gap-2">
+                      <TbChartCandle className="w-5 h-5 text-cyan-400" />
+                      Pivot & Range Levels
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {/* Resistance Levels */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between bg-red-950/15 border border-red-800/20 rounded-lg px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <TbArrowBigUpLines className="w-4 h-4 text-red-400" />
+                          <span className="text-sm text-gray-300">R2</span>
                         </div>
-
-                        {/* Current Price Marker */}
-                        <div className="flex items-center gap-2 px-4">
-                          <div className="flex-1 h-px bg-gray-700" />
-                          <span className="text-xs text-gray-500 flex items-center gap-1">
-                            <RiStockLine className="w-3 h-3" />
-                            CMP: {displayData?.current_price ?? 'N/A'}
-                          </span>
-                          <div className="flex-1 h-px bg-gray-700" />
+                        <span className="font-mono text-sm font-semibold text-red-300">{displayData?.r2 ?? 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-between bg-orange-950/15 border border-orange-800/20 rounded-lg px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <HiChevronUp className="w-4 h-4 text-orange-400" />
+                          <span className="text-sm text-gray-300">R1</span>
                         </div>
+                        <span className="font-mono text-sm font-semibold text-orange-300">{displayData?.r1 ?? 'N/A'}</span>
+                      </div>
+                    </div>
 
-                        {/* Support Levels */}
-                        <div>
-                          <p className="text-xs font-medium text-blue-400 mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                            <HiChevronDown className="w-3.5 h-3.5" />
-                            Support Levels
-                          </p>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between bg-blue-950/15 border border-blue-800/20 rounded-lg px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-blue-400" />
-                                <span className="text-sm text-gray-300">Support 1</span>
-                              </div>
-                              <span className="font-mono text-sm font-semibold text-blue-300">
-                                {displayData?.support_1 ?? 'N/A'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between bg-blue-950/10 border border-blue-800/15 rounded-lg px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                                <span className="text-sm text-gray-300">Support 2</span>
-                              </div>
-                              <span className="font-mono text-sm font-semibold text-blue-400">
-                                {displayData?.support_2 ?? 'N/A'}
-                              </span>
-                            </div>
-                          </div>
+                    {/* Pivot Center */}
+                    <div className="flex items-center justify-between bg-gray-800/50 border border-gray-600/30 rounded-lg px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-white" />
+                        <span className="text-sm text-white font-medium">Pivot</span>
+                      </div>
+                      <span className="font-mono text-sm font-bold text-white">{displayData?.pivot ?? 'N/A'}</span>
+                    </div>
+
+                    {/* Support Levels */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between bg-cyan-950/15 border border-cyan-800/20 rounded-lg px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <HiChevronDown className="w-4 h-4 text-cyan-400" />
+                          <span className="text-sm text-gray-300">S1</span>
                         </div>
-                      </TabsContent>
+                        <span className="font-mono text-sm font-semibold text-cyan-300">{displayData?.s1 ?? 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-between bg-blue-950/15 border border-blue-800/20 rounded-lg px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <TbArrowBigDownLines className="w-4 h-4 text-blue-400" />
+                          <span className="text-sm text-gray-300">S2</span>
+                        </div>
+                        <span className="font-mono text-sm font-semibold text-blue-300">{displayData?.s2 ?? 'N/A'}</span>
+                      </div>
+                    </div>
 
-                      <TabsContent value="analysis" className="mt-0">
-                        <ScrollArea className="h-[320px] pr-3">
-                          <div className="flex items-center gap-2 mb-3">
-                            <TbReportAnalytics className="w-4 h-4 text-cyan-400" />
-                            <span className="text-sm font-medium text-gray-300">AI Analysis Summary</span>
-                          </div>
-                          <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700/30">
-                            {renderMarkdown(displayData?.analysis_summary ?? 'No analysis available.')}
-                          </div>
-                        </ScrollArea>
-                      </TabsContent>
-                    </CardContent>
-                  </Tabs>
+                    <Separator className="bg-gray-800" />
+
+                    {/* Previous Day Range */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Previous Day Range</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">High</span>
+                          <span className="font-mono text-sm text-green-400">{displayData?.prev_day_high ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Low</span>
+                          <span className="font-mono text-sm text-red-400">{displayData?.prev_day_low ?? 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Opening Range */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Opening Range</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">OR High</span>
+                          <span className="font-mono text-sm text-green-400">{displayData?.or_high ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">OR Low</span>
+                          <span className="font-mono text-sm text-red-400">{displayData?.or_low ?? 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
 
-              {/* Analysis Summary - Full Width */}
-              <Card className="bg-gray-900/80 border-gray-800">
+              {/* ROW 4: TRADE DECISION REPORT - PRIMARY FEATURE */}
+              <Card className="bg-gray-900/80 border-gray-800 border-l-4 border-l-cyan-500 shadow-lg shadow-cyan-900/10">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base text-white flex items-center gap-2">
-                    <TbReportAnalytics className="w-5 h-5 text-cyan-400" />
-                    Detailed Analysis
+                  <CardTitle className="text-lg text-white flex items-center gap-2">
+                    <TbReportAnalytics className="w-6 h-6 text-cyan-400" />
+                    TRADE DECISION REPORT
                   </CardTitle>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Complete trade setup with entry, targets, stop loss, and position sizing
+                  </p>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-gray-800/20 rounded-lg p-4 sm:p-6 border border-gray-700/30">
-                    <ScrollArea className="max-h-[400px]">
-                      {renderMarkdown(displayData?.analysis_summary ?? 'No analysis available.')}
-                    </ScrollArea>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Left: Trade Setup */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                        <TbTargetArrow className="w-4 h-4 text-cyan-400" />
+                        Trade Setup
+                      </h4>
+
+                      {/* Entry Type */}
+                      <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-700/30">
+                        <span className="text-xs text-gray-500">Entry Type</span>
+                        <p className="text-sm font-semibold text-cyan-300 mt-0.5">{displayData?.entry_type ?? 'N/A'}</p>
+                      </div>
+
+                      {/* Price Ladder */}
+                      <PriceLadder data={displayData} />
+
+                      {/* Risk Reward Ratio - Prominent */}
+                      <div className="bg-cyan-950/20 border border-cyan-800/30 rounded-lg p-4 text-center">
+                        <span className="text-xs text-cyan-400/70 uppercase tracking-wider block mb-1">Risk : Reward</span>
+                        <span className="text-2xl font-bold font-mono text-cyan-300">
+                          {displayData?.risk_reward_ratio ?? 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right: Position Sizing */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                        <HiCurrencyDollar className="w-4 h-4 text-cyan-400" />
+                        Position Sizing
+                      </h4>
+
+                      <div className="bg-gray-800/40 rounded-lg p-4 border border-gray-700/30 space-y-4">
+                        <div className="flex items-center justify-between py-2 border-b border-gray-700/50">
+                          <span className="text-sm text-gray-400">Position Size</span>
+                          <span className="font-mono text-lg font-bold text-white">{displayData?.position_size ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-gray-700/50">
+                          <span className="text-sm text-gray-400">Capital at Risk</span>
+                          <span className="font-mono text-lg font-bold text-red-400">{displayData?.capital_at_risk ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-gray-700/50">
+                          <span className="text-sm text-gray-400">Entry Zone</span>
+                          <span className="font-mono text-sm font-semibold text-cyan-300">{displayData?.entry_zone ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-gray-700/50">
+                          <span className="text-sm text-gray-400 flex items-center gap-1.5">
+                            <HiShieldCheck className="w-3.5 h-3.5 text-red-400" />
+                            Stop Loss
+                          </span>
+                          <span className="font-mono text-sm font-semibold text-red-400">{displayData?.stop_loss ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-gray-700/50">
+                          <span className="text-sm text-gray-400">Target 1</span>
+                          <span className="font-mono text-sm font-semibold text-green-400">{displayData?.target_1 ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2">
+                          <span className="text-sm text-gray-400">Target 2</span>
+                          <span className="font-mono text-sm font-semibold text-emerald-400">{displayData?.target_2 ?? 'N/A'}</span>
+                        </div>
+                      </div>
+
+                      {/* Capital Allocation Visual */}
+                      <div className="bg-gray-800/40 rounded-lg p-4 border border-gray-700/30">
+                        <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Capital Allocation</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Total Capital</span>
+                            <span className="font-mono text-gray-200">{capital} INR</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Risk Budget ({riskPercent}%)</span>
+                            <span className="font-mono text-amber-400">{(parseFloat(capital || '0') * parseFloat(riskPercent || '0') / 100).toLocaleString()} INR</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Capital at Risk</span>
+                            <span className="font-mono text-red-400">{displayData?.capital_at_risk ?? 'N/A'} INR</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-gray-700 overflow-hidden mt-2">
+                            {(() => {
+                              const totalCap = parseFloat(capital || '0')
+                              const riskCap = parsePrice(displayData?.capital_at_risk)
+                              const pctUsed = totalCap > 0 ? Math.min(100, (riskCap / totalCap) * 100) : 0
+                              return <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-red-500 transition-all" style={{ width: `${pctUsed}%` }} />
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Disclaimer */}
+              {/* ROW 5: Support / Resistance Key Levels */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Key Support Levels */}
+                <Card className="bg-gray-900/80 border-gray-800">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+                      <HiChevronDown className="w-4 h-4" />
+                      Key Support Levels
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {parseLevels(displayData?.key_support_levels).length > 0 ? (
+                        parseLevels(displayData?.key_support_levels).map((level, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-cyan-950/15 border border-cyan-800/20 rounded-lg px-4 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+                              <span className="text-sm text-gray-300">Support {idx + 1}</span>
+                            </div>
+                            <span className="font-mono text-sm font-semibold text-cyan-300">{level}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 text-center py-4">No support levels available</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Key Resistance Levels */}
+                <Card className="bg-gray-900/80 border-gray-800">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm text-orange-400 flex items-center gap-2 uppercase tracking-wider">
+                      <HiChevronUp className="w-4 h-4" />
+                      Key Resistance Levels
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {parseLevels(displayData?.key_resistance_levels).length > 0 ? (
+                        parseLevels(displayData?.key_resistance_levels).map((level, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-orange-950/15 border border-orange-800/20 rounded-lg px-4 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-full bg-orange-400" />
+                              <span className="text-sm text-gray-300">Resistance {idx + 1}</span>
+                            </div>
+                            <span className="font-mono text-sm font-semibold text-orange-300">{level}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 text-center py-4">No resistance levels available</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* ROW 6: Market Structure + News & Earnings */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Market Structure */}
+                <Card className="bg-gray-900/80 border-gray-800">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-white flex items-center gap-2">
+                      <TbTrendingUp className="w-5 h-5 text-cyan-400" />
+                      Market Structure
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700/30">
+                      <p className="text-sm text-gray-300 leading-relaxed">
+                        {displayData?.market_structure ?? 'N/A'}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className={`rounded-lg p-3 border ${getTrendBg(displayData?.trend)}`}>
+                        <span className="text-xs text-gray-500 block mb-1">Trend</span>
+                        <span className={`text-sm font-semibold ${getTrendColor(displayData?.trend)}`}>
+                          {displayData?.trend ?? 'N/A'}
+                        </span>
+                      </div>
+                      <div className={`rounded-lg p-3 border ${getTrendBg(displayData?.momentum)}`}>
+                        <span className="text-xs text-gray-500 block mb-1">Momentum</span>
+                        <span className={`text-sm font-semibold ${getTrendColor(displayData?.momentum)}`}>
+                          {displayData?.momentum ?? 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* News & Earnings */}
+                <Card className="bg-gray-900/80 border-gray-800">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-white flex items-center gap-2">
+                      <HiNewspaper className="w-5 h-5 text-cyan-400" />
+                      News & Earnings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* News Summary */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">News</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">Sentiment:</span>
+                          <span className={`font-mono text-xs font-semibold ${sentimentVal > 0 ? 'text-green-400' : sentimentVal < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                            {displayData?.news_sentiment ?? 'N/A'}
+                          </span>
+                          {displayData?.news_sentiment && (
+                            <div className="w-16 h-1.5 rounded-full bg-gray-700 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${sentimentVal > 0 ? 'bg-green-500' : sentimentVal < 0 ? 'bg-red-500' : 'bg-gray-500'}`}
+                                style={{ width: `${Math.min(100, Math.abs(sentimentVal) * 100)}%`, marginLeft: sentimentVal < 0 ? 'auto' : '0' }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-300 leading-relaxed">
+                        {displayData?.news_summary ?? 'N/A'}
+                      </p>
+                    </div>
+
+                    {/* Earnings Grid */}
+                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                      <span className="text-xs text-gray-500 uppercase tracking-wider font-medium block mb-2">Earnings</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {[
+                          { label: 'QoQ Rev', value: displayData?.qoq_revenue },
+                          { label: 'YoY Rev', value: displayData?.yoy_revenue },
+                          { label: 'QoQ Profit', value: displayData?.qoq_profit },
+                          { label: 'YoY Profit', value: displayData?.yoy_profit },
+                          { label: 'EPS Change', value: displayData?.eps_change },
+                        ].map((item) => (
+                          <div key={item.label} className="bg-gray-800/50 rounded p-2 border border-gray-700/30">
+                            <span className="text-xs text-gray-500 block">{item.label}</span>
+                            <span className={`font-mono text-sm font-medium ${isPositiveChange(item.value) ? 'text-green-400' : 'text-red-400'}`}>
+                              {item.value ?? 'N/A'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Guidance */}
+                    {displayData?.guidance_summary && (
+                      <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider font-medium block mb-1">Guidance</span>
+                        <p className="text-sm text-gray-300">{displayData.guidance_summary}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* ROW 7: Reason Summary */}
+              <Card className="bg-gray-900/80 border-gray-800">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base text-white flex items-center gap-2">
+                    <HiClipboardDocumentList className="w-5 h-5 text-cyan-400" />
+                    Analysis Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {parseReasons(displayData?.reason_summary).length > 0 ? (
+                      parseReasons(displayData?.reason_summary).map((reason, idx) => (
+                        <div key={idx} className="flex items-start gap-3 bg-gray-800/30 rounded-lg p-3 border border-gray-700/20">
+                          <HiArrowRight className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+                          <p className="text-sm text-gray-300">{reason}</p>
+                        </div>
+                      ))
+                    ) : displayData?.reason_summary ? (
+                      <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700/20">
+                        {renderMarkdown(displayData.reason_summary)}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-4">No summary available</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ROW 8: Disclaimer */}
               {displayData?.disclaimer && (
                 <div className="flex items-start gap-2 bg-gray-900/40 rounded-lg p-4 border border-gray-800/50">
-                  <HiInformationCircle className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" />
+                  <HiExclamationTriangle className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-gray-600 leading-relaxed">
                     {displayData.disclaimer}
                   </p>
@@ -972,7 +1532,7 @@ export default function Page() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-gray-600 text-xs">
               <RiStockLine className="w-3.5 h-3.5" />
-              <span>StockPulse - AI-Powered Market Analysis</span>
+              <span>StockPulse Pro - Professional Intraday Trading Analyst</span>
             </div>
             <div className="flex items-center gap-4 text-xs text-gray-600">
               <span className="flex items-center gap-1">
