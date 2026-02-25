@@ -593,6 +593,84 @@ export default function Page() {
     }
   }, [loading])
 
+  const extractStockData = useCallback((response: any): StockAnalysis | null => {
+    if (!response) return null
+
+    // Helper: check if an object looks like valid stock analysis data
+    const isStockData = (obj: any): boolean => {
+      if (!obj || typeof obj !== 'object') return false
+      // Check for at least a few key fields that should always be present
+      const keyFields = ['stock_name', 'current_price', 'final_verdict', 'trend', 'stop_loss']
+      const matchCount = keyFields.filter(f => f in obj && obj[f]).length
+      return matchCount >= 2
+    }
+
+    // Helper: try to parse a string as JSON and check if it's stock data
+    const tryParseAndCheck = (str: string): StockAnalysis | null => {
+      if (!str || typeof str !== 'string') return null
+      try {
+        const parsed = JSON.parse(str)
+        if (isStockData(parsed)) return parsed as StockAnalysis
+        // Check nested keys
+        if (parsed?.result && isStockData(parsed.result)) return parsed.result as StockAnalysis
+        if (parsed?.response?.result && isStockData(parsed.response.result)) return parsed.response.result as StockAnalysis
+        if (parsed?.data && isStockData(parsed.data)) return parsed.data as StockAnalysis
+      } catch {
+        // Try extracting JSON from text
+        const jsonMatch = str.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          try {
+            const extracted = JSON.parse(jsonMatch[0])
+            if (isStockData(extracted)) return extracted as StockAnalysis
+          } catch {}
+        }
+      }
+      return null
+    }
+
+    // Path 1: Direct response.result (standard JSON agent response)
+    const directResult = response?.response?.result
+    if (isStockData(directResult)) return directResult as StockAnalysis
+
+    // Path 2: response.result might be nested further
+    if (directResult?.result && isStockData(directResult.result)) return directResult.result as StockAnalysis
+
+    // Path 3: response.result might contain a text/message field with JSON string
+    if (directResult?.text) {
+      const fromText = tryParseAndCheck(directResult.text)
+      if (fromText) return fromText
+    }
+    if (directResult?.message && typeof directResult.message === 'string') {
+      const fromMsg = tryParseAndCheck(directResult.message)
+      if (fromMsg) return fromMsg
+    }
+
+    // Path 4: response itself might have the data
+    if (isStockData(response?.response)) return response.response as StockAnalysis
+
+    // Path 5: response.message might be a JSON string
+    if (response?.response?.message && typeof response.response.message === 'string') {
+      const fromRespMsg = tryParseAndCheck(response.response.message)
+      if (fromRespMsg) return fromRespMsg
+    }
+
+    // Path 6: Check raw_response
+    if (response?.raw_response) {
+      const fromRaw = tryParseAndCheck(response.raw_response)
+      if (fromRaw) return fromRaw
+    }
+
+    // Path 7: The entire response object at top level
+    if (isStockData(response)) return response as StockAnalysis
+
+    // Path 8: Fallback — if directResult has some stock fields, use it as-is
+    if (directResult && typeof directResult === 'object' && Object.keys(directResult).length > 5) {
+      return directResult as StockAnalysis
+    }
+
+    return null
+  }, [])
+
   const analyzeStock = useCallback(async (stockName: string) => {
     if (!stockName.trim()) return
     setLoading(true)
@@ -602,8 +680,12 @@ export default function Page() {
       const message = `Analyze the stock ${stockName} for intraday trading. Capital: ${capital} INR, Risk per trade: ${riskPercent}%, Max trades today: ${maxTrades}. Provide complete Trade Decision Report with all technical indicators, pivot levels, support/resistance, entry/exit levels, position sizing, news analysis, earnings data, and final verdict.`
       const response = await callAIAgent(message, AGENT_ID)
       if (response?.success) {
-        const data = response?.response?.result as StockAnalysis
-        setResult(data)
+        const data = extractStockData(response)
+        if (data) {
+          setResult(data)
+        } else {
+          setError('Received response but could not extract stock analysis data. Please try again.')
+        }
       } else {
         setError(response?.error || response?.response?.message || 'Failed to analyze stock.')
       }
@@ -612,7 +694,7 @@ export default function Page() {
     } finally {
       setLoading(false)
     }
-  }, [capital, riskPercent, maxTrades])
+  }, [capital, riskPercent, maxTrades, extractStockData])
 
   const handleSearch = useCallback(() => {
     setShowSample(false)

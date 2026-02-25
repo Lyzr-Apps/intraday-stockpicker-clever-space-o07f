@@ -35,6 +35,20 @@ function generateUUID(): string {
   })
 }
 
+// Check if an object looks like a direct agent schema response (flat object with domain-specific fields)
+function isAgentSchemaResponse(obj: any): boolean {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false
+  const keys = Object.keys(obj)
+  if (keys.length < 5) return false
+  // Check it's NOT a wrapper object (no status/result/response/message-only patterns)
+  const wrapperKeys = ['status', 'result', 'response', 'success', 'error', 'data']
+  const wrapperKeyCount = wrapperKeys.filter(k => k in obj).length
+  // If most keys are wrapper keys, it's not a schema response
+  if (wrapperKeyCount > 0 && wrapperKeyCount >= keys.length / 2) return false
+  // A schema response has many domain-specific fields
+  return keys.length >= 8
+}
+
 function normalizeResponse(parsed: any): NormalizedAgentResponse {
   if (!parsed) {
     return {
@@ -45,6 +59,13 @@ function normalizeResponse(parsed: any): NormalizedAgentResponse {
   }
 
   if (typeof parsed === 'string') {
+    // Try to parse as JSON first - agent may return stringified JSON
+    try {
+      const innerParsed = JSON.parse(parsed)
+      if (innerParsed && typeof innerParsed === 'object') {
+        return normalizeResponse(innerParsed)
+      }
+    } catch {}
     return {
       status: 'success',
       result: { text: parsed },
@@ -60,7 +81,32 @@ function normalizeResponse(parsed: any): NormalizedAgentResponse {
     }
   }
 
+  // Check if this is a direct agent schema response (flat object with many domain fields)
+  // This must come BEFORE the wrapper checks to prevent wrapping structured data incorrectly
+  if (isAgentSchemaResponse(parsed)) {
+    return {
+      status: 'success',
+      result: parsed,
+      message: undefined,
+      metadata: undefined,
+    }
+  }
+
   if ('status' in parsed && 'result' in parsed) {
+    // If result itself is a string that's JSON, parse it
+    if (typeof parsed.result === 'string') {
+      try {
+        const innerResult = JSON.parse(parsed.result)
+        if (innerResult && typeof innerResult === 'object') {
+          return {
+            status: parsed.status === 'error' ? 'error' : 'success',
+            result: innerResult,
+            message: parsed.message,
+            metadata: parsed.metadata,
+          }
+        }
+      } catch {}
+    }
     return {
       status: parsed.status === 'error' ? 'error' : 'success',
       result: parsed.result || {},
@@ -81,6 +127,20 @@ function normalizeResponse(parsed: any): NormalizedAgentResponse {
 
   if ('result' in parsed) {
     const r = parsed.result
+    // If result is a string, try JSON parsing
+    if (typeof r === 'string') {
+      try {
+        const innerResult = JSON.parse(r)
+        if (innerResult && typeof innerResult === 'object') {
+          return {
+            status: 'success',
+            result: innerResult,
+            message: parsed.message,
+            metadata: parsed.metadata,
+          }
+        }
+      } catch {}
+    }
     const msg = parsed.message
       ?? (typeof r === 'string' ? r : null)
       ?? (r && typeof r === 'object'
@@ -95,6 +155,17 @@ function normalizeResponse(parsed: any): NormalizedAgentResponse {
   }
 
   if ('message' in parsed && typeof parsed.message === 'string') {
+    // Check if message is actually a JSON string
+    try {
+      const innerParsed = JSON.parse(parsed.message)
+      if (innerParsed && typeof innerParsed === 'object' && isAgentSchemaResponse(innerParsed)) {
+        return {
+          status: 'success',
+          result: innerParsed,
+          message: undefined,
+        }
+      }
+    } catch {}
     return {
       status: 'success',
       result: { text: parsed.message },
@@ -289,6 +360,28 @@ async function pollTask(task_id: string) {
     }
   } catch {
     // Not standard JSON envelope — parseLLMJson will handle it
+  }
+
+  // If agentResponseRaw is still a string, try to directly parse it as JSON
+  // This handles cases where the agent returns a raw JSON string without envelope
+  if (typeof agentResponseRaw === 'string') {
+    try {
+      const directParse = JSON.parse(agentResponseRaw)
+      if (directParse && typeof directParse === 'object' && isAgentSchemaResponse(directParse)) {
+        // Direct schema response — skip parseLLMJson to avoid unwrap issues
+        const normalized = normalizeResponse(directParse)
+        return NextResponse.json({
+          success: true,
+          status: 'completed',
+          response: normalized,
+          module_outputs: moduleOutputs,
+          timestamp: new Date().toISOString(),
+          raw_response: rawText,
+        })
+      }
+    } catch {
+      // Not direct JSON — fall through to parseLLMJson
+    }
   }
 
   const parsed = parseLLMJson(agentResponseRaw)
