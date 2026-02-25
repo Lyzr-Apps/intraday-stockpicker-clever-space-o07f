@@ -599,73 +599,84 @@ export default function Page() {
     // Helper: check if an object looks like valid stock analysis data
     const isStockData = (obj: any): boolean => {
       if (!obj || typeof obj !== 'object') return false
-      // Check for at least a few key fields that should always be present
-      const keyFields = ['stock_name', 'current_price', 'final_verdict', 'trend', 'stop_loss']
-      const matchCount = keyFields.filter(f => f in obj && obj[f]).length
+      const keyFields = ['stock_name', 'current_price', 'final_verdict', 'trend', 'stop_loss', 'target_1', 'entry_zone', 'rsi', 'ema_20']
+      const matchCount = keyFields.filter(f => f in obj && obj[f] !== undefined && obj[f] !== null).length
       return matchCount >= 2
     }
 
-    // Helper: try to parse a string as JSON and check if it's stock data
-    const tryParseAndCheck = (str: string): StockAnalysis | null => {
-      if (!str || typeof str !== 'string') return null
-      try {
-        const parsed = JSON.parse(str)
-        if (isStockData(parsed)) return parsed as StockAnalysis
-        // Check nested keys
-        if (parsed?.result && isStockData(parsed.result)) return parsed.result as StockAnalysis
-        if (parsed?.response?.result && isStockData(parsed.response.result)) return parsed.response.result as StockAnalysis
-        if (parsed?.data && isStockData(parsed.data)) return parsed.data as StockAnalysis
-      } catch {
-        // Try extracting JSON from text
-        const jsonMatch = str.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          try {
-            const extracted = JSON.parse(jsonMatch[0])
-            if (isStockData(extracted)) return extracted as StockAnalysis
-          } catch {}
+    // Helper: deeply search an object for stock data at any nesting level
+    const deepSearch = (obj: any, depth: number = 0): StockAnalysis | null => {
+      if (depth > 6 || !obj) return null
+      if (typeof obj === 'string') {
+        return tryParseStr(obj)
+      }
+      if (typeof obj !== 'object') return null
+      if (isStockData(obj)) return obj as StockAnalysis
+
+      // Check known wrapper keys
+      const searchKeys = ['result', 'response', 'data', 'output', 'content', 'text', 'message']
+      for (const key of searchKeys) {
+        if (key in obj && obj[key] != null) {
+          const found = deepSearch(obj[key], depth + 1)
+          if (found) return found
         }
       }
       return null
     }
 
-    // Path 1: Direct response.result (standard JSON agent response)
-    const directResult = response?.response?.result
-    if (isStockData(directResult)) return directResult as StockAnalysis
+    // Helper: try to parse a string as JSON
+    const tryParseStr = (str: string): StockAnalysis | null => {
+      if (!str || typeof str !== 'string') return null
+      const trimmed = str.trim()
 
-    // Path 2: response.result might be nested further
-    if (directResult?.result && isStockData(directResult.result)) return directResult.result as StockAnalysis
+      // Direct JSON parse
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          const found = deepSearch(parsed, 1)
+          if (found) return found
+        } catch {}
+      }
 
-    // Path 3: response.result might contain a text/message field with JSON string
-    if (directResult?.text) {
-      const fromText = tryParseAndCheck(directResult.text)
-      if (fromText) return fromText
+      // Extract JSON from markdown code blocks
+      const codeBlockMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
+      if (codeBlockMatch?.[1]) {
+        try {
+          const parsed = JSON.parse(codeBlockMatch[1].trim())
+          if (isStockData(parsed)) return parsed as StockAnalysis
+        } catch {}
+      }
+
+      // Find first { ... } block in text
+      const braceStart = trimmed.indexOf('{')
+      if (braceStart !== -1) {
+        const braceEnd = trimmed.lastIndexOf('}')
+        if (braceEnd > braceStart) {
+          try {
+            const parsed = JSON.parse(trimmed.substring(braceStart, braceEnd + 1))
+            if (isStockData(parsed)) return parsed as StockAnalysis
+          } catch {}
+        }
+      }
+
+      return null
     }
-    if (directResult?.message && typeof directResult.message === 'string') {
-      const fromMsg = tryParseAndCheck(directResult.message)
-      if (fromMsg) return fromMsg
-    }
 
-    // Path 4: response itself might have the data
-    if (isStockData(response?.response)) return response.response as StockAnalysis
+    // Primary: Deep search the entire response object
+    const found = deepSearch(response)
+    if (found) return found
 
-    // Path 5: response.message might be a JSON string
-    if (response?.response?.message && typeof response.response.message === 'string') {
-      const fromRespMsg = tryParseAndCheck(response.response.message)
-      if (fromRespMsg) return fromRespMsg
-    }
-
-    // Path 6: Check raw_response
-    if (response?.raw_response) {
-      const fromRaw = tryParseAndCheck(response.raw_response)
+    // Fallback: Check raw_response string (contains stringified Lyzr envelope)
+    if (response?.raw_response && typeof response.raw_response === 'string') {
+      const fromRaw = tryParseStr(response.raw_response)
       if (fromRaw) return fromRaw
     }
 
-    // Path 7: The entire response object at top level
-    if (isStockData(response)) return response as StockAnalysis
-
-    // Path 8: Fallback — if directResult has some stock fields, use it as-is
-    if (directResult && typeof directResult === 'object' && Object.keys(directResult).length > 5) {
-      return directResult as StockAnalysis
+    // Last resort: If directResult has many keys, use it even if key detection didn't match
+    const directResult = response?.response?.result
+    if (directResult && typeof directResult === 'object' && !Array.isArray(directResult)) {
+      const keys = Object.keys(directResult)
+      if (keys.length > 5) return directResult as StockAnalysis
     }
 
     return null
@@ -677,17 +688,26 @@ export default function Page() {
     setError('')
     setResult(null)
     try {
-      const message = `Analyze the stock ${stockName} for intraday trading. Capital: ${capital} INR, Risk per trade: ${riskPercent}%, Max trades today: ${maxTrades}. Provide complete Trade Decision Report with all technical indicators, pivot levels, support/resistance, entry/exit levels, position sizing, news analysis, earnings data, and final verdict.`
+      const message = `Analyze the stock ${stockName} for intraday trading. Capital: ${capital} INR, Risk per trade: ${riskPercent}%, Max trades today: ${maxTrades}. Provide complete Trade Decision Report with all technical indicators, pivot levels, support/resistance, entry/exit levels, position sizing, news analysis, earnings data, and final verdict. Return ONLY a JSON object with all required fields.`
       const response = await callAIAgent(message, AGENT_ID)
       if (response?.success) {
         const data = extractStockData(response)
         if (data) {
           setResult(data)
         } else {
-          setError('Received response but could not extract stock analysis data. Please try again.')
+          // Show more useful error with hint about what went wrong
+          const resultKeys = response?.response?.result ? Object.keys(response.response.result) : []
+          const hasText = response?.response?.result?.text || response?.response?.message
+          if (hasText) {
+            setError('Agent returned a text response instead of structured data. Please try again.')
+          } else if (resultKeys.length === 0) {
+            setError('Agent returned an empty response. Please try a different stock or try again later.')
+          } else {
+            setError('Could not parse the response data. Please try again.')
+          }
         }
       } else {
-        setError(response?.error || response?.response?.message || 'Failed to analyze stock.')
+        setError(response?.error || response?.response?.message || 'Failed to analyze stock. Please try again.')
       }
     } catch (err) {
       setError('Failed to analyze stock. Please check your connection and try again.')

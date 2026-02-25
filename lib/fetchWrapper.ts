@@ -97,7 +97,9 @@ const fetchWrapper = async (...args) => {
         response.status,
         requestUrl,
       );
-      return;
+      // Return the response so callers can read the error body
+      // instead of getting undefined which silently swallows errors
+      return response;
     }
 
     return response;

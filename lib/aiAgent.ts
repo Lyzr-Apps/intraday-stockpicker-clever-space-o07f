@@ -140,13 +140,32 @@ export async function callAIAgent(
       if (!pollRes) {
         continue // fetchWrapper returned undefined (redirect/error) — retry next poll
       }
-      const pollData = await pollRes.json()
+
+      let pollData: any
+      try {
+        pollData = await pollRes.json()
+      } catch {
+        // JSON parse failed — retry
+        continue
+      }
 
       if (pollData.status === 'processing') {
         continue
       }
 
-      // Completed or failed — attach agent_id/user_id/session_id and return
+      // If task failed, return immediately instead of keep polling
+      if (pollData.status === 'failed' || pollData.success === false) {
+        return {
+          success: false,
+          response: pollData.response || { status: 'error', result: {}, message: pollData.error || 'Agent task failed' },
+          error: pollData.error || 'Agent task failed',
+          agent_id,
+          user_id,
+          session_id,
+        }
+      }
+
+      // Completed — attach agent_id/user_id/session_id and return
       return {
         ...pollData,
         agent_id,
